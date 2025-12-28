@@ -1,49 +1,74 @@
-// -------------------- Elements --------------------
+// =================================================
+// ELEMENT REFERENCES
+// =================================================
 
-const setupView = document.getElementById("setupView");
-const dashboardView = document.getElementById("dashboardView");
+const screens = {
+  welcome: document.getElementById("screen-welcome"),
+  connect: document.getElementById("screen-connect"),
+  success: document.getElementById("screen-success"),
+  dashboard: document.getElementById("screen-dashboard"),
+};
 
-const ownerInput = document.getElementById("githubOwner");
-const repoInput = document.getElementById("githubRepo");
-const tokenInput = document.getElementById("githubToken");
+const btnStartSetup = document.getElementById("btn-start-setup");
+const btnGoDashboard = document.getElementById("btn-go-dashboard");
+const changeConfigLink = document.getElementById("change-config-link");
 
-const saveBtn = document.getElementById("saveBtn");
-const setupStatus = document.getElementById("setupStatus");
+const connectForm = document.getElementById("connect-form");
+const usernameInput = document.getElementById("github-username");
+const repoInput = document.getElementById("github-repo");
+const tokenInput = document.getElementById("github-token");
 
-const repoText = document.getElementById("repoText");
-// const dashboardStatus = document.getElementById("dashboardStatus");
-const changeConfigBtn = document.getElementById("changeConfigBtn");
-const autoSyncToggle = document.getElementById("autoSyncToggle");
-const syncModeText = document.getElementById("syncModeText");
+const repoNameEls = document.querySelectorAll(".repo-name");
 
-// -------------------- View Helpers --------------------
+const autoSyncToggle = document.getElementById("auto-sync-toggle");
+const syncModeText = document.getElementById("sync-mode-text");
+const manualSyncBtn = document.getElementById("manual-sync-btn");
 
-function showSetup() {
-  setupView.classList.remove("hidden");
-  dashboardView.classList.add("hidden");
+const lastSyncInfo = document.getElementById("last-sync-info");
+const lastSyncFile = document.getElementById("last-sync-file");
+const lastSyncTime = document.getElementById("last-sync-time");
+
+// Close buttons
+document.querySelectorAll(".close-btn").forEach(btn => {
+  btn.addEventListener("click", () => window.close());
+});
+
+// =================================================
+// HELPERS
+// =================================================
+
+function showScreen(screenName) {
+  Object.values(screens).forEach(s => s.classList.add("hidden"));
+  screens[screenName].classList.remove("hidden");
 }
 
-function showDashboard(owner, repo) {
-  repoText.textContent = `Repo: ${owner}/${repo}`;
-  setupView.classList.add("hidden");
-  dashboardView.classList.remove("hidden");
+function formatRepo(owner, repo) {
+  return `${owner}/${repo}`;
 }
 
-// -------------------- Draft Persistence --------------------
-
-function persistDraft() {
-  chrome.storage.local.set({
-    draftGithubOwner: ownerInput.value,
-    draftGithubRepo: repoInput.value,
-    draftGithubToken: tokenInput.value
+function updateRepoName(owner, repo) {
+  repoNameEls.forEach(el => {
+    el.textContent = formatRepo(owner, repo);
   });
 }
 
-ownerInput.addEventListener("input", persistDraft);
-repoInput.addEventListener("input", persistDraft);
-tokenInput.addEventListener("input", persistDraft);
+function updateAutoSyncUI(autoSync) {
+  autoSyncToggle.setAttribute("aria-checked", autoSync);
 
-// -------------------- Load State --------------------
+  if (autoSync) {
+    syncModeText.textContent =
+      "Solutions sync automatically after Accepted submissions";
+    manualSyncBtn.classList.add("hidden");
+  } else {
+    syncModeText.textContent =
+      "Auto sync is off. Manual sync required.";
+    manualSyncBtn.classList.remove("hidden");
+  }
+}
+
+// =================================================
+// INITIAL LOAD
+// =================================================
 
 chrome.storage.local.get(
   [
@@ -51,42 +76,59 @@ chrome.storage.local.get(
     "githubRepo",
     "githubToken",
     "autoSync",
-    "lastStatus",
-    "draftGithubOwner",
-    "draftGithubRepo",
-    "draftGithubToken"
+    "lastSyncedFile",
+    "lastSyncedTime",
   ],
   (data) => {
-    autoSyncToggle.checked = data.autoSync !== false;
+    const { githubOwner, githubRepo, githubToken } = data;
 
-    syncModeText.textContent = autoSyncToggle.checked
-      ? "Mode: Auto-sync ✅"
-      : "Mode: Manual ⏸️";
+    // Default autoSync = true
+    const autoSync = data.autoSync !== false;
 
-    if (data.githubOwner && data.githubRepo && data.githubToken) {
-      showDashboard(data.githubOwner, data.githubRepo);
+    if (githubOwner && githubRepo && githubToken) {
+      updateRepoName(githubOwner, githubRepo);
+      updateAutoSyncUI(autoSync);
+      showScreen("dashboard");
+
+      if (data.lastSyncedFile && data.lastSyncedTime) {
+        lastSyncFile.textContent = `Synced ${data.lastSyncedFile}`;
+        lastSyncTime.textContent = data.lastSyncedTime;
+        lastSyncInfo.classList.remove("hidden");
+      }
     } else {
-      showSetup();
-      ownerInput.value = data.draftGithubOwner || "";
-      repoInput.value = data.draftGithubRepo || "";
-      tokenInput.value = data.draftGithubToken || "";
+      showScreen("welcome");
     }
-
-    // if (data.lastStatus) {
-    //   dashboardStatus.textContent = data.lastStatus;
-    // }
   }
 );
 
-// -------------------- Save Configuration --------------------
+// =================================================
+// NAVIGATION
+// =================================================
 
-saveBtn.addEventListener("click", () => {
-  const githubOwner = ownerInput.value.trim();
+btnStartSetup?.addEventListener("click", () => {
+  showScreen("connect");
+});
+
+btnGoDashboard?.addEventListener("click", () => {
+  showScreen("dashboard");
+});
+
+changeConfigLink?.addEventListener("click", () => {
+  showScreen("connect");
+});
+
+// =================================================
+// FORM SUBMIT (CONNECT REPO)
+// =================================================
+
+connectForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const githubOwner = usernameInput.value.trim();
   const githubRepo = repoInput.value.trim();
   const githubToken = tokenInput.value.trim();
 
   if (!githubOwner || !githubRepo || !githubToken) {
-    setupStatus.textContent = "Please fill all fields ⚠️";
     return;
   }
 
@@ -96,36 +138,41 @@ saveBtn.addEventListener("click", () => {
       githubRepo,
       githubToken,
       autoSync: true,
-      draftGithubOwner: "",
-      draftGithubRepo: "",
-      draftGithubToken: "",
-      lastStatus: "GitHub configured successfully ✅"
     },
     () => {
-      setupStatus.textContent = "";
-      showDashboard(githubOwner, githubRepo);
-      // dashboardStatus.textContent = "Waiting for next Accepted submission…";
-      syncModeText.textContent = "Mode: Auto-sync ✅";
+      updateRepoName(githubOwner, githubRepo);
+      updateAutoSyncUI(true);
+      showScreen("success");
     }
   );
 });
 
-// -------------------- Change Configuration --------------------
+// =================================================
+// AUTO SYNC TOGGLE
+// =================================================
 
-changeConfigBtn.addEventListener("click", () => {
-  showSetup();
+autoSyncToggle?.addEventListener("click", () => {
+  const isEnabled = autoSyncToggle.getAttribute("aria-checked") === "true";
+  const nextState = !isEnabled;
+
+  chrome.storage.local.set({ autoSync: nextState }, () => {
+    updateAutoSyncUI(nextState);
+  });
 });
 
-// -------------------- Auto-sync Toggle --------------------
+// =================================================
+// MANUAL SYNC BUTTON (placeholder)
+// =================================================
 
-autoSyncToggle.addEventListener("change", () => {
-  chrome.storage.local.set({ autoSync: autoSyncToggle.checked });
+manualSyncBtn?.addEventListener("click", () => {
+  // This will later send a message to background.js
+  // For now, visual feedback only
 
-  syncModeText.textContent = autoSyncToggle.checked
-    ? "Mode: Auto-sync ✅"
-    : "Mode: Manual ⏸️";
+  manualSyncBtn.textContent = "Syncing...";
+  manualSyncBtn.disabled = true;
 
-  // dashboardStatus.textContent = autoSyncToggle.checked
-  //   ? "Auto-sync enabled ✅"
-  //   : "Auto-sync disabled ⏸️";
+  setTimeout(() => {
+    manualSyncBtn.textContent = "Sync Last Submission";
+    manualSyncBtn.disabled = false;
+  }, 1000);
 });

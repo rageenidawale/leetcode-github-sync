@@ -2,57 +2,250 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LeetCode GitHub Sync</title>
+  <meta name="viewport" content="width=360, initial-scale=1.0" />
+  <title>LinkCode</title>
+
+  <!-- CSS will be added later -->
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
 
-  <!-- SETUP VIEW -->
-  <div id="setupView" class="container">
-    <h1>LeetCode GitHub Sync</h1>
-    <p class="subtitle">One-time setup</p>
+  <!-- ================================================= -->
+  <!-- SCREEN 1: WELCOME / LANDING -->
+  <!-- ================================================= -->
+  <section id="screen-welcome" class="screen">
 
-    <label>
-      GitHub Username
-      <input type="text" id="githubOwner" />
-    </label>
+    <!-- Logo -->
+    <div class="logo-container">
+      <!-- STATIC asset -->
+      <img src="assets/logo-full.png" alt="LinkCode logo" />
+    </div>
 
-    <label>
-      Repository Name
-      <input type="text" id="githubRepo" />
-    </label>
+    <!-- Tagline -->
+    <p class="subtitle">Leetcode to GitHub Sync</p>
 
-    <label>
-      GitHub Token
-      <input type="password" id="githubToken" />
-    </label>
+    <!-- Description -->
+    <p class="description">
+      Automatically save accepted solutions to GitHub
+    </p>
 
-    <button id="saveBtn">Save & Continue</button>
-    <p id="setupStatus" class="status"></p>
-  </div>
-
-  <!-- DASHBOARD VIEW -->
-  <div id="dashboardView" class="container hidden">
-    <h1>LeetCode → GitHub</h1>
-
-    <p class="repo" id="repoText"></p>
-
-    <p class="mode" id="syncModeText"></p>
-
-    <label class="toggle">
-      <input type="checkbox" id="autoSyncToggle" />
-      <span>Auto-sync</span>
-    </label>
-
-    <!-- <div class="status-box" id="dashboardStatus">
-      Waiting for next Accepted submission…
-    </div> -->
-
-    <button id="changeConfigBtn" class="link-button">
-      Change configuration
+    <!-- Primary CTA -->
+    <button class="primary-btn" id="btn-start-setup" type="button">
+      Connect GitHub Repository
     </button>
+
+    <!-- Footer link -->
+    <p class="footer-text">
+      Having issues?
+      <a href="https://github.com/rageenidawale/leetcode-github-sync/issues" 
+      target="_blank"
+      rel="noopener noreferrer"
+      class="link">Report Bug</a>
+    </p>
+
+  </section>
+
+  <!-- ================================================= -->
+  <!-- SCREEN 2: CONNECT REPOSITORY (FORM) -->
+  <!-- ================================================= -->
+  <section id="screen-connect" class="screen hidden">
+
+    <!-- Header -->
+    <header class="top-bar">
+      <div class="brand-inline">
+        <img src="assets/logo-icon.png" alt="LinkCode icon" />
+        <span class="brand-name">LINKCODE</span>
+      </div>
+
+      <button class="close-btn" aria-label="Close popup">✕</button>
+    </header>
+
+    <!-- Title -->
+    <h2 class="page-title">Connect a GitHub repository</h2>
+
+    <!-- Subtitle -->
+    <p class="page-description">
+      We’ll sync accepted LeetCode solutions to a single repository.
+      You stay in full control.
+    </p>
+
+    <!-- Form -->
+    <form id="connect-form">
+
+      <fieldset class="form-section">
+        <legend>Repository Details</legend>
+
+        <!-- DYNAMIC -->
+        <input
+          type="text"
+          id="github-username"
+          placeholder="Username"
+        />
+
+        <!-- DYNAMIC -->
+        <input
+          type="text"
+          id="github-repo"
+          placeholder="Repository Name"
+        />
+      </fieldset>
+
+      <fieldset class="form-section">
+        <legend>Access Token</legend>
+
+        <!-- DYNAMIC / SENSITIVE -->
+        <input
+          type="password"
+          id="github-token"
+          placeholder="Access Token"
+        />
+
+        <p class="helper-text">
+          Used only to push code to this repository.
+          You can revoke access anytime.
+        </p>
+
+        <div class="helper-links">
+          <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="link">How do I create this token?</a>
+          <a href="#" class="link">Why is this needed?</a>
+        </div>
+      </fieldset>
+
+      <!-- Submit -->
+      <button type="submit" class="primary-btn">
+        Connect Repository
+      </button>
+
+    </form>
+
+    <!-- Footer -->
+    <p class="footer-text">
+      Having issues?
+      <a href="https://github.com/rageenidawale/leetcode-github-sync/issues" 
+      target="_blank"
+      rel="noopener noreferrer"
+      class="link">Report Bug</a>
+    </p>
+
+  </section>
+
+  <!-- ================================================= -->
+  <!-- SCREEN 3: SUCCESS -->
+  <!-- ================================================= -->
+  <section id="screen-success" class="screen hidden">
+
+    <!-- Header -->
+    <header class="top-bar">
+      <div class="brand-inline">
+        <img src="assets/logo-icon.png" alt="LinkCode icon" />
+        <span class="brand-name">LINKCODE</span>
+      </div>
+
+      <button class="close-btn" aria-label="Close popup">✕</button>
+    </header>
+
+    <!-- Success message -->
+    <h2 class="success-title">Connected Successfully!</h2>
+
+    <p class="success-text">
+      Your LeetCode submissions will now sync automatically to:
+    </p>
+
+    <!-- DYNAMIC -->
+    <p class="repo-name">rageeni/leetcode-solutions</p>
+
+    <!-- CTA -->
+    <button class="primary-btn" id="btn-go-dashboard" type="button">
+      Go to Dashboard
+    </button>
+
+    <p class="footer-text">
+      Having issues?
+      <a href="https://github.com/rageenidawale/leetcode-github-sync/issues" 
+      target="_blank"
+      rel="noopener noreferrer"
+      class="link">Report Bug</a>
+    </p>
+
+  </section>
+
+  <!-- ================================================= -->
+<!-- DASHBOARD -->
+<!-- ================================================= -->
+<section id="screen-dashboard" class="screen hidden">
+
+  <!-- Header -->
+    <header class="top-bar">
+      <div class="brand-inline">
+        <img src="assets/logo-icon.png" alt="LinkCode icon" />
+        <span class="brand-name">LINKCODE</span>
+      </div>
+
+      <button class="close-btn" aria-label="Close popup">✕</button>
+    </header>
+
+  <!-- Repo info -->
+  <p class="label">Connected repository:</p>
+  <!-- DYNAMIC -->
+  <p id="repo-name" class="repo-name">
+    rageeni/leetcode-solutions
+  </p>
+
+  <!-- Auto Sync Toggle -->
+  <div class="toggle-row">
+    <span class="toggle-label">Auto Sync</span>
+
+    <!-- DYNAMIC -->
+    <button
+      id="auto-sync-toggle"
+      class="toggle"
+      role="switch"
+      aria-checked="true"
+      type="button"
+    ></button>
   </div>
 
+  <!-- DYNAMIC helper text -->
+  <p id="sync-mode-text" class="hint">
+    Solutions sync automatically after Accepted submissions
+  </p>
+
+  <!-- Manual sync button (only when auto-sync OFF) -->
+  <button
+    id="manual-sync-btn"
+    class="primary-btn hidden"
+    type="button"
+  >
+    Sync Last Submission
+  </button>
+
+  <!-- Last sync info -->
+  <div id="last-sync-info" class="last-sync hidden">
+    <!-- DYNAMIC -->
+    <p id="last-sync-file">Synced python/two_sum.py</p>
+    <span id="last-sync-time">2 minutes ago</span>
+  </div>
+
+  <!-- Links -->
+  <a href="#" id="change-config-link" class="link change-config-link">
+    Change Configurations
+  </a>
+
+  <p class="footer-text">
+    Having issues?
+    <a href="https://github.com/rageenidawale/leetcode-github-sync/issues" 
+      target="_blank"
+      rel="noopener noreferrer"
+      class="link">Report Bug</a>
+  </p>
+
+</section>
+
+
+  <!-- JS will be added later -->
   <script src="popup.js"></script>
 </body>
 </html>
