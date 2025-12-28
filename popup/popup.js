@@ -121,28 +121,48 @@ changeConfigLink?.addEventListener("click", () => {
 // FORM SUBMIT (CONNECT REPO)
 // =================================================
 
-connectForm?.addEventListener("submit", (e) => {
+connectForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
   const githubOwner = usernameInput.value.trim();
   const githubRepo = repoInput.value.trim();
   const githubToken = tokenInput.value.trim();
 
-  if (!githubOwner || !githubRepo || !githubToken) {
-    return;
-  }
+  if (!githubOwner || !githubRepo || !githubToken) return;
 
-  chrome.storage.local.set(
+  // Disable button + show loading
+  const submitBtn = connectForm.querySelector("button[type='submit']");
+  submitBtn.textContent = "Connecting...";
+  submitBtn.disabled = true;
+
+  chrome.runtime.sendMessage(
     {
-      githubOwner,
-      githubRepo,
-      githubToken,
-      autoSync: true,
+      type: "VERIFY_GITHUB",
+      payload: { owner: githubOwner, repo: githubRepo, token: githubToken }
     },
-    () => {
-      updateRepoName(githubOwner, githubRepo);
-      updateAutoSyncUI(true);
-      showScreen("success");
+    (response) => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Connect Repository";
+
+      if (!response || !response.success) {
+        alert(response?.error || "Failed to connect to GitHub");
+        return;
+      }
+
+      // ✅ Verified → persist config
+      chrome.storage.local.set(
+        {
+          githubOwner,
+          githubRepo,
+          githubToken,
+          autoSync: true
+        },
+        () => {
+          updateRepoName(githubOwner, githubRepo);
+          updateAutoSyncUI(true);
+          showScreen("success");
+        }
+      );
     }
   );
 });

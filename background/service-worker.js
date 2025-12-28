@@ -196,6 +196,48 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   );
 });
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "VERIFY_GITHUB") {
+    verifyGitHubRepo(message.payload)
+      .then(sendResponse)
+      .catch(err =>
+        sendResponse({ success: false, error: err.message })
+      );
+    return true; // async response
+  }
+});
+
+async function verifyGitHubRepo({ owner, repo, token }) {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json"
+      }
+    }
+  );
+
+  if (res.status === 401) {
+    return { success: false, error: "Invalid access token" };
+  }
+
+  if (res.status === 403) {
+    return { success: false, error: "Token does not have access to this repository" };
+  }
+
+  if (res.status === 404) {
+    return { success: false, error: "Repository not found" };
+  }
+
+  if (!res.ok) {
+    return { success: false, error: "GitHub verification failed" };
+  }
+
+  return { success: true };
+}
+
+
 /* -------------------- GitHub API -------------------- */
 
 async function pushToGitHub({ owner, repo, token, path, content }) {
