@@ -24,14 +24,14 @@ const autoSyncToggle = document.getElementById("auto-sync-toggle");
 const syncModeText = document.getElementById("sync-mode-text");
 const manualSyncBtn = document.getElementById("manual-sync-btn");
 
-const lastSyncInfo = document.getElementById("last-sync-info");
-const lastSyncFile = document.getElementById("last-sync-file");
-const lastSyncTime = document.getElementById("last-sync-time");
-
-const formError = document.getElementById("form-error");
+// const lastSyncInfo = document.getElementById("last-sync-info");
+// const lastSyncFile = document.getElementById("last-sync-file");
+// const lastSyncTime = document.getElementById("last-sync-time");
 
 const statusBox = document.getElementById("status-box");
 const statusText = document.getElementById("status-text");
+
+const formError = document.getElementById("form-error");
 
 // Close buttons
 document.querySelectorAll(".close-btn").forEach(btn => {
@@ -81,33 +81,70 @@ function clearFormError() {
   formError.classList.add("hidden");
 }
 
-function renderStatus({ lastSync, lastAccepted, syncError, autoSync }) {
+function resetStatus() {
+  statusBox.className = "status";
+  statusText.textContent = "";
+  statusText.innerHTML = "";
+}
+
+function hideStatus() {
   statusBox.classList.add("hidden");
+}
 
-  // Nothing ever synced, no error
-  if (!lastSync && !syncError) return;
-
+function showError(message) {
   statusBox.classList.remove("hidden");
+  statusBox.classList.add("error");
+  statusText.innerHTML = message;
+}
 
-  // Error state
+function showWarning(message) {
+  statusBox.classList.remove("hidden");
+  statusBox.classList.add("warning");
+  statusText.innerHTML = message;
+}
+
+function showSuccess(message) {
+  statusBox.classList.remove("hidden");
+  statusBox.classList.add("success");
+  statusText.innerHTML = message;
+}
+
+function renderStatus({ lastAccepted, lastSync, syncError, autoSync }) {
+  // Always reset first
+  resetStatus();
+
+  // 1️⃣ Nothing ever happened
+  if (!lastAccepted && !lastSync && !syncError) {
+    hideStatus();
+    return;
+  }
+
+  // 2️⃣ Error always wins
   if (syncError) {
-    statusText.textContent = syncError.message;
-    statusBox.className = "status-box error";
+    showError(syncError.message || "Sync failed due to an unknown error.");
     return;
   }
 
-  // Auto-sync OFF
-  if (autoSync === false) {
-    statusText.textContent =
-      `Auto-sync is off. Last synced ${timeAgo(lastSync.time)} — ${lastSync.path}`;
-    statusBox.className = "status-box warning";
+  // 3️⃣ Auto-sync OFF + accepted but NOT synced
+  if (
+    autoSync === false &&
+    lastAccepted &&
+    (!lastSync || lastAccepted.time > lastSync.time)
+  ) {
+    showWarning(
+      `Solution accepted but not synced.<br>
+       Last accepted: <b>${lastAccepted.path}</b> (${timeAgo(lastAccepted.time)})`
+    );
     return;
   }
 
-  // Normal success
-  statusText.textContent =
-    `Last synced ${timeAgo(lastSync.time)} — ${lastSync.path}`;
-  statusBox.className = "status-box success";
+  // 4️⃣ Normal success (last synced)
+  if (lastSync) {
+    showSuccess(
+      `Synced <b>${lastSync.path}</b><br>
+       Last sync: ${timeAgo(lastSync.time)}`
+    );
+  }
 }
 
 function timeAgo(ts) {
@@ -131,8 +168,9 @@ chrome.storage.local.get(
     "githubRepo",
     "githubToken",
     "autoSync",
-    "lastSyncedFile",
-    "lastSyncedTime",
+    "lastAccepted",
+    "lastSync",
+    "syncError",
     FORM_DRAFT_KEY, 
   ],
   (data) => {

@@ -338,11 +338,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         console.log("✅ Manual GitHub push successful:", result.content.path);
         setLastSync(path);
 
-        // OPTIONAL but recommended (for UI status)
         chrome.storage.local.set({
           lastSyncedFile: path,
           lastSyncedTime: new Date().toLocaleString(),
         });
+        console.log("Writing last sync to storage");
 
       } catch (err) {
         console.error("❌ Manual sync failed:", err.message);

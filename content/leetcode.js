@@ -4,6 +4,8 @@ let submissionInProgress = false;
 let lastStatus = null;
 let observer = null;
 let lastSeenResult = null;
+let currentProblemSlug = null;
+
 
 const SUBMIT_SELECTORS = [
   '[data-e2e-locator="console-submit-button"]',
@@ -29,6 +31,24 @@ function isSQLLanguage(lang) {
   return ["mysql", "postgresql", "oracle", "ms sql server", "sqlserver"].includes(lang?.toLowerCase());
 }
 
+function getProblemSlug() {
+  const match = window.location.pathname.match(/problems\/([^/]+)/);
+  return match ? match[1] : null;
+}
+setInterval(() => {
+  const slug = getProblemSlug();
+  if (!slug) return;
+
+  if (slug !== currentProblemSlug) {
+    console.log("Problem changed: ", slug);
+
+    currentProblemSlug = slug;
+    submissionInProgress = false;
+    lastStatus = null;
+  }
+}
+
+);
 // Detect Submit click
 document.addEventListener("click", (event) => {
   console.log("Click!");
@@ -52,45 +72,29 @@ document.addEventListener("keydown", (e) => {
 
 // Observe result changes
 observer = new MutationObserver(() => {
+  console.log("submissionInProgress: ", submissionInProgress);
+
   if (!submissionInProgress) return;
-
-  //  // ---------- SQL FLOW ----------
-  // if (submissionInProgress) {
-  //   const editor = window.monaco?.editor?.getModels?.()[0];
-  //   const lang = editor?.getLanguageId();
-
-  //   if (isSQLLanguage(lang)) {
-  //     submissionInProgress = false;
-  //     safeSendMessage({ type: "EXTRACT_CODE" });
-  //     return; // IMPORTANT: stop here for SQL
-  //   }
-  // }
 
   const resultEl = document.querySelector(
     '[data-e2e-locator="submission-result"]'
   );
   if (!resultEl) return;
 
+  if (resultEl === lastSeenResult) return;
+  lastSeenResult = resultEl;
+
   const status = resultEl.innerText.trim();
 
   console.log("Submission status: ", status);
 
-  if (resultEl === lastSeenResult) return;
-  lastSeenResult = resultEl;
-
   if (status === "Accepted") {
     lastStatus = "Accepted";
-    // submissionInProgress = false;
+    submissionInProgress = false;
 
     console.log("Accepted detected");
 
     const sent = safeSendMessage({ type: "EXTRACT_CODE" });
-
-    // IMPORTANT: stop observer immediately
-    if (sent && observer) {
-      observer.disconnect();
-      observer = null;
-    }
   }
 });
 
