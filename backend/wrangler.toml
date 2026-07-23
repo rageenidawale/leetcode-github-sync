@@ -1,0 +1,15 @@
+name = "linkcode-auth"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Public (non-secret) config. Edit these two:
+[vars]
+APP_SLUG = "your-github-app-slug"
+EXT_REDIRECT_URL = "https://YOUR_EXTENSION_ID.chromiumapp.org/"
+
+# Secrets — set with `wrangler secret put NAME` (never commit these):
+#   GITHUB_APP_ID          e.g. 123456
+#   GITHUB_APP_PRIVATE_KEY the App private key, converted to PKCS8 (see README)
+#   GITHUB_CLIENT_ID       the App's client id
+#   GITHUB_CLIENT_SECRET   the App's client secret
+#   SESSION_SECRET         any long random string (e.g. `openssl rand -hex 32`)
