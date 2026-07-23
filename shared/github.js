@@ -13,21 +13,6 @@ function authHeaders(token) {
   };
 }
 
-export async function verifyGitHubRepo({ owner, repo, token }) {
-  const res = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, {
-    headers: authHeaders(token),
-  });
-
-  if (res.status === 401) return { success: false, error: "Invalid access token" };
-  if (res.status === 403) {
-    return { success: false, error: "Token does not have access to this repository" };
-  }
-  if (res.status === 404) return { success: false, error: "Repository not found" };
-  if (!res.ok) return { success: false, error: "GitHub verification failed" };
-
-  return { success: true };
-}
-
 export async function pushToGitHub({ owner, repo, token, path, content }) {
   const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${path}`;
 

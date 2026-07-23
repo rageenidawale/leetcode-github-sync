@@ -8,19 +8,15 @@ export const get = (keys) => local.get(keys);
 export const set = (obj) => local.set(obj);
 export const remove = (keys) => local.remove(keys);
 
-// GitHub connection config.
+// Connected repo + sync preference. The GitHub token itself is handled by
+// shared/auth.js, not stored here.
 export async function getConfig() {
-  const d = await local.get([KEYS.owner, KEYS.repo, KEYS.token, KEYS.autoSync]);
+  const d = await local.get([KEYS.owner, KEYS.repo, KEYS.autoSync]);
   return {
     owner: d[KEYS.owner],
     repo: d[KEYS.repo],
-    token: d[KEYS.token],
     autoSync: d[KEYS.autoSync],
   };
-}
-
-export function isConfigured({ owner, repo, token }) {
-  return Boolean(owner && repo && token);
 }
 
 // Sync state setters.

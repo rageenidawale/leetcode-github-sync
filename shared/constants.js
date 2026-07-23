@@ -6,24 +6,27 @@ export const APP_NAME = "LinkCode";
 
 export const GITHUB_API_BASE = "https://api.github.com";
 
+// Auth backend (Cloudflare Worker). Set this to your deployed Worker URL.
+export const WORKER_BASE_URL = "https://YOUR-WORKER.workers.dev";
+
 // Message types passed between content script, popup, and service worker.
 export const MESSAGES = {
   EXTRACT_CODE: "EXTRACT_CODE",
   MANUAL_SYNC: "MANUAL_SYNC",
-  VERIFY_GITHUB: "VERIFY_GITHUB",
 };
 
 // chrome.storage.local keys.
 export const KEYS = {
   owner: "githubOwner",
   repo: "githubRepo",
-  token: "githubToken",
   autoSync: "autoSync",
+  session: "ghSession",              // signed session from the auth Worker
+  installToken: "ghInstallToken",    // cached installation token
+  installTokenExp: "ghInstallTokenExp",
   lastSubmission: "lastSubmission",
   lastAccepted: "lastAccepted",
   lastSync: "lastSync",
   syncError: "syncError",
-  formDraft: "connectFormDraft",
 };
 
 // Canonical language → output folder + file extension.
