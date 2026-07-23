@@ -1,9 +1,9 @@
 import { MESSAGES } from "../shared/constants.js";
 import * as log from "../shared/logger.js";
 import * as store from "../shared/storage.js";
-import { normalizeLanguage, buildPath, buildHeader, buildCommitMessage, humanize } from "../shared/languages.js";
-import { pushToGitHub } from "../shared/github.js";
+import { normalizeLanguage, buildPath } from "../shared/languages.js";
 import * as auth from "../shared/auth.js";
+import * as queue from "../shared/queue.js";
 
 // Runs in the page (MAIN world) — must not reference anything outside itself.
 function extractFromMonaco() {
@@ -19,40 +19,6 @@ function extractFromMonaco() {
   }
 
   return { code, language };
-}
-
-// Build the header + commit message, push to GitHub, then record the sync.
-async function pushSubmission(submission, langInfo, cfg, settings, path, token) {
-  const { problemSlug, language, code, meta } = submission;
-
-  const header = buildHeader({
-    slug: problemSlug,
-    rawLanguage: language,
-    langInfo,
-    meta,
-    headerOpts: settings.header,
-  });
-
-  const message = buildCommitMessage(settings.commitTemplate, {
-    path,
-    slug: problemSlug,
-    title: meta?.title || humanize(problemSlug),
-    difficulty: meta?.difficulty || "",
-    lang: language,
-    date: new Date().toLocaleString(),
-  });
-
-  await pushToGitHub({
-    owner: cfg.owner,
-    repo: cfg.repo,
-    token,
-    path,
-    content: `${header}\n${code}`,
-    message,
-    branch: settings.branch,
-  });
-
-  await store.setLastSync(path);
 }
 
 async function handleExtractCode(sender, meta) {
@@ -91,22 +57,15 @@ async function handleExtractCode(sender, meta) {
   const cfg = await store.getConfig();
   const settings = await store.getSettings();
 
+  // Record the accepted path (drives the "accepted but not synced" hint).
   try {
-    const path = buildPath(langInfo, submission.problemSlug, submission.meta, settings);
-    await store.setLastAccepted(path);
+    await store.setLastAccepted(buildPath(langInfo, submission.problemSlug, submission.meta, settings));
+  } catch { /* unsupported layout/lang — ignore, sync guard handles it */ }
 
-    if (cfg.autoSync === false) return;
+  if (cfg.autoSync === false) return;
 
-    const token = await auth.getAccessToken();
-    await pushSubmission(submission, langInfo, cfg, settings, path, token);
-  } catch (err) {
-    log.error("GitHub push error:", err.message);
-    await store.setSyncError(
-      err.message.includes("401")
-        ? "Couldn’t sync to GitHub. Please check your access token."
-        : "Sync failed due to a network or GitHub issue."
-    );
-  }
+  await queue.enqueue(submission);
+  await queue.processQueue();
 }
 
 async function handleManualSync() {
@@ -116,30 +75,27 @@ async function handleManualSync() {
     return;
   }
 
-  if (!(await auth.isConnected())) {
-    log.warn("GitHub not connected");
-    return;
-  }
+  await queue.enqueue(submission);
+  await queue.processQueue();
+}
 
-  const langInfo = normalizeLanguage(submission.language);
-  if (langInfo.family === "unknown") {
-    log.warn("Unsupported language for manual sync");
-    return;
-  }
-
-  const cfg = await store.getConfig();
-  const settings = await store.getSettings();
-
-  try {
-    const path = buildPath(langInfo, submission.problemSlug, submission.meta, settings);
-    const token = await auth.getAccessToken();
-    await pushSubmission(submission, langInfo, cfg, settings, path, token);
-  } catch (err) {
-    log.error("Manual sync failed:", err.message);
-  }
+async function handleEnqueue(submissions) {
+  for (const s of submissions || []) await queue.enqueue(s);
+  await queue.processQueue();
 }
 
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.type === MESSAGES.EXTRACT_CODE) handleExtractCode(sender, message.meta);
   if (message.type === MESSAGES.MANUAL_SYNC) handleManualSync();
+  if (message.type === MESSAGES.ENQUEUE) handleEnqueue(message.submissions);
+  if (message.type === MESSAGES.RETRY_FAILED) queue.retryFailed();
 });
+
+// Background sync: drain the queue periodically and on startup, so failed or
+// offline jobs get retried even without a new submission.
+chrome.alarms.create("processSyncQueue", { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === "processSyncQueue") queue.processQueue();
+});
+chrome.runtime.onStartup.addListener(() => queue.processQueue());
+queue.processQueue();
