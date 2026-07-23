@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LinkCode Settings</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      max-width: 640px; margin: 0 auto; padding: 32px 24px; line-height: 1.5;
+    }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; }
+    .sub { opacity: 0.7; margin: 0 0 28px; }
+    fieldset { border: 1px solid rgba(128,128,128,0.35); border-radius: 8px; margin: 0 0 20px; padding: 16px 18px; }
+    legend { font-weight: 600; padding: 0 6px; }
+    label { display: block; margin: 12px 0 4px; font-weight: 500; }
+    .hint { font-size: 0.85rem; opacity: 0.7; margin: 2px 0 0; }
+    input[type="text"], select {
+      width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 0.95rem;
+      border: 1px solid rgba(128,128,128,0.4); border-radius: 6px; background: transparent; color: inherit;
+    }
+    .check { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 8px 0; }
+    .check input { width: auto; }
+    .preview {
+      margin-top: 8px; padding: 10px 12px; border-radius: 6px; font-family: ui-monospace, monospace;
+      background: rgba(128,128,128,0.12); word-break: break-all;
+    }
+    .actions { display: flex; align-items: center; gap: 14px; }
+    button {
+      padding: 10px 20px; font-size: 0.95rem; font-weight: 600; border: 0; border-radius: 6px;
+      background: #2f6feb; color: #fff; cursor: pointer;
+    }
+    #saved-msg { color: #2e9e5b; font-weight: 600; opacity: 0; transition: opacity 0.2s; }
+    #saved-msg.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <h1>LinkCode Settings</h1>
+  <p class="sub">Control how accepted solutions are named, organized, and committed.</p>
+
+  <fieldset>
+    <legend>Organization</legend>
+
+    <label for="folder-layout">Folder layout</label>
+    <select id="folder-layout">
+      <option value="language">By language — python/</option>
+      <option value="difficulty">By difficulty — easy/</option>
+      <option value="language/difficulty">Language, then difficulty — python/easy/</option>
+      <option value="difficulty/language">Difficulty, then language — easy/python/</option>
+    </select>
+    <p class="hint">Difficulty needs problem metadata; if it can't be read, LinkCode falls back to language.</p>
+
+    <label for="filename-template">Filename</label>
+    <input type="text" id="filename-template" placeholder="{slug}" />
+    <p class="hint">Tokens: <code>{slug}</code> <code>{id}</code> <code>{title}</code>. The extension is added automatically.</p>
+
+    <div class="preview">Example: <span id="preview">—</span></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Commit</legend>
+
+    <label for="commit-template">Commit message</label>
+    <input type="text" id="commit-template" placeholder="LeetCode: update {path}" />
+    <p class="hint">Tokens: <code>{path}</code> <code>{slug}</code> <code>{title}</code> <code>{difficulty}</code> <code>{lang}</code> <code>{date}</code>.</p>
+
+    <label for="branch">Branch</label>
+    <input type="text" id="branch" placeholder="(repository default)" />
+    <p class="hint">Leave empty to push to the repository's default branch.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>File header</legend>
+    <label class="check"><input type="checkbox" id="header-date" /> Date synced</label>
+    <label class="check"><input type="checkbox" id="header-link" /> Link to problem</label>
+    <label class="check"><input type="checkbox" id="header-difficulty" /> Difficulty</label>
+    <label class="check"><input type="checkbox" id="header-topics" /> Topics</label>
+  </fieldset>
+
+  <div class="actions">
+    <button id="save-btn" type="button">Save</button>
+    <span id="saved-msg">Saved ✓</span>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

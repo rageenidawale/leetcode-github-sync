@@ -19,6 +19,7 @@ const syncModeText = document.getElementById("sync-mode-text");
 const manualSyncBtn = document.getElementById("manual-sync-btn");
 const statusBox = document.getElementById("status-box");
 const statusText = document.getElementById("status-text");
+const settingsLink = document.getElementById("settings-link");
 const logoutLink = document.getElementById("logout-link");
 
 // =================================================
@@ -150,6 +151,11 @@ btnConnect?.addEventListener("click", async () => {
 // =================================================
 // DISCONNECT
 // =================================================
+
+settingsLink?.addEventListener("click", (e) => {
+  e.preventDefault();
+  chrome.runtime.openOptionsPage();
+});
 
 logoutLink?.addEventListener("click", async (e) => {
   e.preventDefault();

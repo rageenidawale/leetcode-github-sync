@@ -8,6 +8,8 @@
     "default_popup": "popup/popup.html"
   },
 
+  "options_page": "options/options.html",
+
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
