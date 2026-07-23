@@ -1,5 +1,6 @@
-import { MESSAGES, KEYS } from "../shared/constants.js";
+import { KEYS, MESSAGES } from "../shared/constants.js";
 import * as store from "../shared/storage.js";
+import * as auth from "../shared/auth.js";
 
 // =================================================
 // ELEMENT REFERENCES
@@ -7,35 +8,18 @@ import * as store from "../shared/storage.js";
 
 const screens = {
   welcome: document.getElementById("screen-welcome"),
-  connect: document.getElementById("screen-connect"),
-  success: document.getElementById("screen-success"),
   dashboard: document.getElementById("screen-dashboard"),
 };
 
-const btnStartSetup = document.getElementById("btn-start-setup");
-const btnGoDashboard = document.getElementById("btn-go-dashboard");
-const changeConfigLink = document.getElementById("change-config-link");
-
-const connectForm = document.getElementById("connect-form");
-const usernameInput = document.getElementById("github-username");
-const repoInput = document.getElementById("github-repo");
-const tokenInput = document.getElementById("github-token");
-
-const repoNameEls = document.querySelectorAll(".repo-name");
-
+const btnConnect = document.getElementById("btn-connect");
+const connectError = document.getElementById("connect-error");
+const repoNameEl = document.getElementById("repo-name");
 const autoSyncToggle = document.getElementById("auto-sync-toggle");
 const syncModeText = document.getElementById("sync-mode-text");
 const manualSyncBtn = document.getElementById("manual-sync-btn");
-
 const statusBox = document.getElementById("status-box");
 const statusText = document.getElementById("status-text");
-
-const formError = document.getElementById("form-error");
-
-// Close buttons
-document.querySelectorAll(".close-btn").forEach(btn => {
-  btn.addEventListener("click", () => window.close());
-});
+const logoutLink = document.getElementById("logout-link");
 
 // =================================================
 // HELPERS
@@ -47,9 +31,7 @@ function showScreen(screenName) {
 }
 
 function updateRepoName(owner, repo) {
-  repoNameEls.forEach(el => {
-    el.textContent = `${owner}/${repo}`;
-  });
+  repoNameEl.textContent = `${owner}/${repo}`;
 }
 
 function updateAutoSyncUI(autoSync) {
@@ -64,14 +46,9 @@ function updateAutoSyncUI(autoSync) {
   }
 }
 
-function showFormError(message) {
-  formError.textContent = message;
-  formError.classList.remove("hidden");
-}
-
-function clearFormError() {
-  formError.textContent = "";
-  formError.classList.add("hidden");
+function showConnectError(message) {
+  connectError.textContent = message;
+  connectError.classList.remove("hidden");
 }
 
 function hideStatus() {
@@ -131,140 +108,54 @@ function timeAgo(ts) {
 // INITIAL LOAD
 // =================================================
 
-store
-  .get([
-    KEYS.owner,
-    KEYS.repo,
-    KEYS.token,
-    KEYS.autoSync,
-    KEYS.lastAccepted,
-    KEYS.lastSync,
-    KEYS.syncError,
-    KEYS.formDraft,
-  ])
-  .then((data) => {
-    renderStatus(data);
+async function init() {
+  const data = await store.get([KEYS.autoSync, KEYS.lastAccepted, KEYS.lastSync, KEYS.syncError]);
+  renderStatus(data);
 
-    const owner = data[KEYS.owner];
-    const repo = data[KEYS.repo];
-    const token = data[KEYS.token];
-
-    // Default autoSync = true
-    const autoSync = data[KEYS.autoSync] !== false;
-
-    // Already connected → dashboard
-    if (owner && repo && token) {
-      updateRepoName(owner, repo);
-      updateAutoSyncUI(autoSync);
-      showScreen("dashboard");
-      return;
-    }
-
-    // Not connected - welcome
+  if (await auth.isConnected()) {
+    const { owner, repo, autoSync } = await store.getConfig();
+    updateRepoName(owner, repo);
+    updateAutoSyncUI(autoSync !== false);
+    showScreen("dashboard");
+  } else {
     showScreen("welcome");
-
-    // Restore form draft if it exists
-    const draft = data[KEYS.formDraft];
-    if (draft) {
-      usernameInput.value = draft.githubOwner || "";
-      repoInput.value = draft.githubRepo || "";
-      tokenInput.value = draft.githubToken || "";
-    }
-  });
-
-// =================================================
-// NAVIGATION
-// =================================================
-
-btnStartSetup?.addEventListener("click", () => {
-  showScreen("connect");
-});
-
-btnGoDashboard?.addEventListener("click", () => {
-  showScreen("dashboard");
-});
-
-changeConfigLink?.addEventListener("click", () => {
-  showScreen("connect");
-});
-
-// =================================================
-// FORM SUBMIT (CONNECT REPO)
-// =================================================
-
-// Save draft on input
-[usernameInput, repoInput, tokenInput].forEach(input => {
-  input.addEventListener("input", () => {
-    clearFormError();
-    store.set({
-      [KEYS.formDraft]: {
-        githubOwner: usernameInput.value,
-        githubRepo: repoInput.value,
-        githubToken: tokenInput.value
-      }
-    });
-  });
-});
-
-let isSubmitting = false;
-
-connectForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-
-  if (isSubmitting) return;
-
-  const githubOwner = usernameInput.value.trim();
-  const githubRepo = repoInput.value.trim();
-  const githubToken = tokenInput.value.trim();
-
-  if (!githubOwner || !githubRepo || !githubToken) {
-    showFormError("All fields are required.");
-    return;
   }
+}
 
-  isSubmitting = true;
+init();
 
-  // Disable button + show loading
-  const submitBtn = connectForm.querySelector("button[type='submit']");
-  submitBtn.textContent = "Connecting...";
-  submitBtn.disabled = true;
+// =================================================
+// CONNECT (GitHub App OAuth)
+// =================================================
 
-  chrome.runtime.sendMessage(
-    {
-      type: MESSAGES.VERIFY_GITHUB,
-      payload: { owner: githubOwner, repo: githubRepo, token: githubToken }
-    },
-    (response) => {
-      isSubmitting = false;
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Connect Repository";
+btnConnect?.addEventListener("click", async () => {
+  connectError.classList.add("hidden");
+  btnConnect.textContent = "Connecting…";
+  btnConnect.disabled = true;
 
-      if (chrome.runtime.lastError) {
-        showFormError("Extension error. Please try again.");
-        return;
-      }
+  try {
+    const { owner, repo } = await auth.login();
+    await store.set({ [KEYS.autoSync]: true });
+    updateRepoName(owner, repo);
+    updateAutoSyncUI(true);
+    showScreen("dashboard");
+  } catch (err) {
+    showConnectError(err.message || "Could not connect to GitHub");
+  } finally {
+    btnConnect.textContent = "Connect with GitHub";
+    btnConnect.disabled = false;
+  }
+});
 
-      if (!response || !response.success) {
-        showFormError(response?.error || "Failed to connect to GitHub");
-        return;
-      }
+// =================================================
+// DISCONNECT
+// =================================================
 
-      // Verified - persist config
-      store
-        .set({
-          [KEYS.owner]: githubOwner,
-          [KEYS.repo]: githubRepo,
-          [KEYS.token]: githubToken,
-          [KEYS.autoSync]: true,
-        })
-        .then(() => {
-          store.remove(KEYS.formDraft);
-          updateRepoName(githubOwner, githubRepo);
-          updateAutoSyncUI(true);
-          showScreen("success");
-        });
-    }
-  );
+logoutLink?.addEventListener("click", async (e) => {
+  e.preventDefault();
+  await auth.logout();
+  hideStatus();
+  showScreen("welcome");
 });
 
 // =================================================
