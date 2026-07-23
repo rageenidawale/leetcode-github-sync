@@ -2,7 +2,8 @@ import { MESSAGES } from "../shared/constants.js";
 import * as log from "../shared/logger.js";
 import * as store from "../shared/storage.js";
 import { normalizeLanguage, getPath, buildHeader } from "../shared/languages.js";
-import { verifyGitHubRepo, pushToGitHub } from "../shared/github.js";
+import { pushToGitHub } from "../shared/github.js";
+import * as auth from "../shared/auth.js";
 
 // Runs in the page (MAIN world) — must not reference anything outside itself.
 function extractFromMonaco() {
@@ -21,7 +22,7 @@ function extractFromMonaco() {
 }
 
 // Build the header + push a submission to GitHub, then record the sync.
-async function pushSubmission({ problemSlug, language, code }, langInfo, cfg, path) {
+async function pushSubmission({ problemSlug, language, code }, langInfo, cfg, path, token) {
   const header = buildHeader({
     title: problemSlug.replace(/-/g, " "),
     slug: problemSlug,
@@ -32,7 +33,7 @@ async function pushSubmission({ problemSlug, language, code }, langInfo, cfg, pa
   await pushToGitHub({
     owner: cfg.owner,
     repo: cfg.repo,
-    token: cfg.token,
+    token,
     path,
     content: `${header}\n${code}`,
   });
@@ -67,11 +68,12 @@ async function handleExtractCode(sender) {
 
   await store.setLastSubmission(submission);
 
-  const cfg = await store.getConfig();
-  if (!store.isConfigured(cfg)) {
-    log.warn("GitHub not configured yet");
+  if (!(await auth.isConnected())) {
+    log.warn("GitHub not connected yet");
     return;
   }
+
+  const cfg = await store.getConfig();
 
   try {
     const path = getPath(langInfo, submission.problemSlug);
@@ -79,7 +81,8 @@ async function handleExtractCode(sender) {
 
     if (cfg.autoSync === false) return;
 
-    await pushSubmission(submission, langInfo, cfg, path);
+    const token = await auth.getAccessToken();
+    await pushSubmission(submission, langInfo, cfg, path, token);
   } catch (err) {
     log.error("GitHub push error:", err.message);
     await store.setSyncError(
@@ -97,9 +100,8 @@ async function handleManualSync() {
     return;
   }
 
-  const cfg = await store.getConfig();
-  if (!store.isConfigured(cfg)) {
-    log.warn("GitHub not configured");
+  if (!(await auth.isConnected())) {
+    log.warn("GitHub not connected");
     return;
   }
 
@@ -109,29 +111,18 @@ async function handleManualSync() {
     return;
   }
 
+  const cfg = await store.getConfig();
+
   try {
     const path = getPath(langInfo, submission.problemSlug);
-    await pushSubmission(submission, langInfo, cfg, path);
+    const token = await auth.getAccessToken();
+    await pushSubmission(submission, langInfo, cfg, path, token);
   } catch (err) {
     log.error("Manual sync failed:", err.message);
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === MESSAGES.EXTRACT_CODE) {
-    handleExtractCode(sender);
-    return;
-  }
-
-  if (message.type === MESSAGES.MANUAL_SYNC) {
-    handleManualSync();
-    return;
-  }
-
-  if (message.type === MESSAGES.VERIFY_GITHUB) {
-    verifyGitHubRepo(message.payload)
-      .then(sendResponse)
-      .catch((err) => sendResponse({ success: false, error: err.message }));
-    return true; // async response
-  }
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message.type === MESSAGES.EXTRACT_CODE) handleExtractCode(sender);
+  if (message.type === MESSAGES.MANUAL_SYNC) handleManualSync();
 });
