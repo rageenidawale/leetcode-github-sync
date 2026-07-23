@@ -1,3 +1,6 @@
+import { MESSAGES, KEYS } from "../shared/constants.js";
+import * as store from "../shared/storage.js";
+
 // =================================================
 // ELEMENT REFERENCES
 // =================================================
@@ -127,29 +130,31 @@ function timeAgo(ts) {
 // =================================================
 // INITIAL LOAD
 // =================================================
-const FORM_DRAFT_KEY = "connectFormDraft";
 
-chrome.storage.local.get(
-  [
-    "githubOwner",
-    "githubRepo",
-    "githubToken",
-    "autoSync",
-    "lastAccepted",
-    "lastSync",
-    "syncError",
-    FORM_DRAFT_KEY,
-  ],
-  (data) => {
+store
+  .get([
+    KEYS.owner,
+    KEYS.repo,
+    KEYS.token,
+    KEYS.autoSync,
+    KEYS.lastAccepted,
+    KEYS.lastSync,
+    KEYS.syncError,
+    KEYS.formDraft,
+  ])
+  .then((data) => {
     renderStatus(data);
-    const { githubOwner, githubRepo, githubToken } = data;
+
+    const owner = data[KEYS.owner];
+    const repo = data[KEYS.repo];
+    const token = data[KEYS.token];
 
     // Default autoSync = true
-    const autoSync = data.autoSync !== false;
+    const autoSync = data[KEYS.autoSync] !== false;
 
     // Already connected → dashboard
-    if (githubOwner && githubRepo && githubToken) {
-      updateRepoName(githubOwner, githubRepo);
+    if (owner && repo && token) {
+      updateRepoName(owner, repo);
       updateAutoSyncUI(autoSync);
       showScreen("dashboard");
       return;
@@ -159,14 +164,13 @@ chrome.storage.local.get(
     showScreen("welcome");
 
     // Restore form draft if it exists
-    const draft = data[FORM_DRAFT_KEY];
+    const draft = data[KEYS.formDraft];
     if (draft) {
       usernameInput.value = draft.githubOwner || "";
       repoInput.value = draft.githubRepo || "";
       tokenInput.value = draft.githubToken || "";
     }
-  }
-);
+  });
 
 // =================================================
 // NAVIGATION
@@ -192,8 +196,8 @@ changeConfigLink?.addEventListener("click", () => {
 [usernameInput, repoInput, tokenInput].forEach(input => {
   input.addEventListener("input", () => {
     clearFormError();
-    chrome.storage.local.set({
-      [FORM_DRAFT_KEY]: {
+    store.set({
+      [KEYS.formDraft]: {
         githubOwner: usernameInput.value,
         githubRepo: repoInput.value,
         githubToken: tokenInput.value
@@ -227,7 +231,7 @@ connectForm.addEventListener("submit", (e) => {
 
   chrome.runtime.sendMessage(
     {
-      type: "VERIFY_GITHUB",
+      type: MESSAGES.VERIFY_GITHUB,
       payload: { owner: githubOwner, repo: githubRepo, token: githubToken }
     },
     (response) => {
@@ -246,15 +250,19 @@ connectForm.addEventListener("submit", (e) => {
       }
 
       // Verified - persist config
-      chrome.storage.local.set(
-        { githubOwner, githubRepo, githubToken, autoSync: true },
-        () => {
-          chrome.storage.local.remove(FORM_DRAFT_KEY);
+      store
+        .set({
+          [KEYS.owner]: githubOwner,
+          [KEYS.repo]: githubRepo,
+          [KEYS.token]: githubToken,
+          [KEYS.autoSync]: true,
+        })
+        .then(() => {
+          store.remove(KEYS.formDraft);
           updateRepoName(githubOwner, githubRepo);
           updateAutoSyncUI(true);
           showScreen("success");
-        }
-      );
+        });
     }
   );
 });
@@ -266,7 +274,7 @@ connectForm.addEventListener("submit", (e) => {
 autoSyncToggle?.addEventListener("click", () => {
   const nextState = autoSyncToggle.getAttribute("aria-checked") !== "true";
 
-  chrome.storage.local.set({ autoSync: nextState }, () => {
+  store.set({ [KEYS.autoSync]: nextState }).then(() => {
     updateAutoSyncUI(nextState);
   });
 });
@@ -281,7 +289,7 @@ manualSyncBtn?.addEventListener("click", (e) => {
   manualSyncBtn.textContent = "Syncing...";
   manualSyncBtn.disabled = true;
 
-  chrome.runtime.sendMessage({ type: "MANUAL_SYNC" });
+  chrome.runtime.sendMessage({ type: MESSAGES.MANUAL_SYNC });
 
   setTimeout(() => {
     manualSyncBtn.textContent = "Sync Last Submission";
@@ -296,10 +304,9 @@ manualSyncBtn?.addEventListener("click", (e) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
 
-  if (changes.lastSync || changes.syncError) {
-    chrome.storage.local.get(
-      ["autoSync", "lastSync", "lastAccepted", "syncError"],
-      renderStatus
-    );
+  if (changes[KEYS.lastSync] || changes[KEYS.syncError]) {
+    store
+      .get([KEYS.autoSync, KEYS.lastSync, KEYS.lastAccepted, KEYS.syncError])
+      .then(renderStatus);
   }
 });
