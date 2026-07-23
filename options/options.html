@@ -82,6 +82,24 @@
     <span id="saved-msg">Saved ✓</span>
   </div>
 
+  <fieldset style="margin-top: 28px;">
+    <legend>Sync activity</legend>
+
+    <div class="actions" style="margin-bottom: 6px;">
+      <button id="import-btn" type="button">Import existing solutions</button>
+      <span id="import-status" class="hint"></span>
+    </div>
+    <p class="hint">Backfills your most recent accepted solutions. Open a leetcode.com tab first (uses your logged-in session).</p>
+
+    <div id="failed-row" class="actions" style="margin: 14px 0 6px; display: none;">
+      <button id="retry-btn" type="button" style="background:#c0392b;">Retry failed</button>
+      <span id="failed-count" class="hint"></span>
+    </div>
+
+    <label style="margin-top: 14px;">Recent syncs</label>
+    <div id="history-list" class="preview">No syncs yet.</div>
+  </fieldset>
+
   <script type="module" src="options.js"></script>
 </body>
 </html>

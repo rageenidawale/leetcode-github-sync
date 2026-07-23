@@ -10,6 +10,10 @@
   appear in the file header
 - Solutions now record difficulty and topics (read from LeetCode), which
   enables organizing files by difficulty
+- Syncs now go through a background queue with automatic retry, offline
+  recovery, and duplicate detection; failed syncs can be retried from Settings
+- Added "Import existing solutions" to backfill recent accepted submissions,
+  plus a recent-sync activity list
 
 ## v1.0.1
 - Fixed popup crash (ReferenceError) after a manual sync
