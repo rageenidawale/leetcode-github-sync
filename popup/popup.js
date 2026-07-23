@@ -43,13 +43,9 @@ function showScreen(screenName) {
   screens[screenName].classList.remove("hidden");
 }
 
-function formatRepo(owner, repo) {
-  return `${owner}/${repo}`;
-}
-
 function updateRepoName(owner, repo) {
   repoNameEls.forEach(el => {
-    el.textContent = formatRepo(owner, repo);
+    el.textContent = `${owner}/${repo}`;
   });
 }
 
@@ -57,12 +53,10 @@ function updateAutoSyncUI(autoSync) {
   autoSyncToggle.setAttribute("aria-checked", autoSync);
 
   if (autoSync) {
-    syncModeText.textContent =
-      "Solutions sync automatically after Accepted submissions";
+    syncModeText.textContent = "Solutions sync automatically after Accepted submissions";
     manualSyncBtn.classList.add("hidden");
   } else {
-    syncModeText.textContent =
-      "Auto sync is off. Manual sync required.";
+    syncModeText.textContent = "Auto sync is off. Manual sync required.";
     manualSyncBtn.classList.remove("hidden");
   }
 }
@@ -77,38 +71,17 @@ function clearFormError() {
   formError.classList.add("hidden");
 }
 
-function resetStatus() {
-  statusBox.className = "status";
-  statusText.textContent = "";
-  statusText.innerHTML = "";
-}
-
 function hideStatus() {
   statusBox.classList.add("hidden");
 }
 
-function showError(message) {
-  statusBox.classList.remove("hidden");
-  statusBox.classList.add("error");
-  statusText.innerHTML = message;
-}
-
-function showWarning(message) {
-  statusBox.classList.remove("hidden");
-  statusBox.classList.add("warning");
-  statusText.innerHTML = message;
-}
-
-function showSuccess(message) {
-  statusBox.classList.remove("hidden");
-  statusBox.classList.add("success");
+// kind: "error" | "warning" | "success"
+function showStatus(kind, message) {
+  statusBox.className = `status ${kind}`;
   statusText.innerHTML = message;
 }
 
 function renderStatus({ lastAccepted, lastSync, syncError, autoSync }) {
-  // Always reset first
-  resetStatus();
-
   // Nothing ever happened
   if (!lastAccepted && !lastSync && !syncError) {
     hideStatus();
@@ -117,17 +90,14 @@ function renderStatus({ lastAccepted, lastSync, syncError, autoSync }) {
 
   // Error always wins
   if (syncError) {
-    showError(syncError.message || "Sync failed due to an unknown error.");
+    showStatus("error", syncError.message || "Sync failed due to an unknown error.");
     return;
   }
 
   // Auto-sync OFF + accepted but NOT synced
-  if (
-    autoSync === false &&
-    lastAccepted &&
-    (!lastSync || lastAccepted.time > lastSync.time)
-  ) {
-    showWarning(
+  if (autoSync === false && lastAccepted && (!lastSync || lastAccepted.time > lastSync.time)) {
+    showStatus(
+      "warning",
       `Solution accepted but not synced.<br>
        Last accepted: <b>${lastAccepted.path}</b> (${timeAgo(lastAccepted.time)})`
     );
@@ -136,7 +106,8 @@ function renderStatus({ lastAccepted, lastSync, syncError, autoSync }) {
 
   // Normal success (last synced)
   if (lastSync) {
-    showSuccess(
+    showStatus(
+      "success",
       `Synced <b>${lastSync.path}</b><br>
        Last sync: ${timeAgo(lastSync.time)}`
     );
@@ -167,7 +138,7 @@ chrome.storage.local.get(
     "lastAccepted",
     "lastSync",
     "syncError",
-    FORM_DRAFT_KEY, 
+    FORM_DRAFT_KEY,
   ],
   (data) => {
     renderStatus(data);
@@ -181,12 +152,6 @@ chrome.storage.local.get(
       updateRepoName(githubOwner, githubRepo);
       updateAutoSyncUI(autoSync);
       showScreen("dashboard");
-
-      if (data.lastSyncedFile && data.lastSyncedTime) {
-        lastSyncFile.textContent = `Synced ${data.lastSyncedFile}`;
-        lastSyncTime.textContent = data.lastSyncedTime;
-        lastSyncInfo.classList.remove("hidden");
-      }
       return;
     }
 
@@ -251,7 +216,7 @@ connectForm.addEventListener("submit", (e) => {
   if (!githubOwner || !githubRepo || !githubToken) {
     showFormError("All fields are required.");
     return;
-  } 
+  }
 
   isSubmitting = true;
 
@@ -278,18 +243,13 @@ connectForm.addEventListener("submit", (e) => {
       if (!response || !response.success) {
         showFormError(response?.error || "Failed to connect to GitHub");
         return;
-        }
+      }
+
       // Verified - persist config
       chrome.storage.local.set(
-        {
-          githubOwner,
-          githubRepo,
-          githubToken,
-          autoSync: true
-        },
-        
+        { githubOwner, githubRepo, githubToken, autoSync: true },
         () => {
-            chrome.storage.local.remove(FORM_DRAFT_KEY);
+          chrome.storage.local.remove(FORM_DRAFT_KEY);
           updateRepoName(githubOwner, githubRepo);
           updateAutoSyncUI(true);
           showScreen("success");
@@ -304,8 +264,7 @@ connectForm.addEventListener("submit", (e) => {
 // =================================================
 
 autoSyncToggle?.addEventListener("click", () => {
-  const isEnabled = autoSyncToggle.getAttribute("aria-checked") === "true";
-  const nextState = !isEnabled;
+  const nextState = autoSyncToggle.getAttribute("aria-checked") !== "true";
 
   chrome.storage.local.set({ autoSync: nextState }, () => {
     updateAutoSyncUI(nextState);
@@ -313,7 +272,7 @@ autoSyncToggle?.addEventListener("click", () => {
 });
 
 // =================================================
-// MANUAL SYNC BUTTON (placeholder)
+// MANUAL SYNC BUTTON
 // =================================================
 
 manualSyncBtn?.addEventListener("click", (e) => {
