@@ -1,6 +1,6 @@
 // Thin wrapper over chrome.storage.local: one place that knows the storage
 // shape, so callers don't repeat key names or the get/set boilerplate.
-import { KEYS } from "./constants.js";
+import { KEYS, DEFAULT_SETTINGS } from "./constants.js";
 
 const local = chrome.storage.local;
 
@@ -40,4 +40,15 @@ export async function getLastSubmission() {
 
 export function setLastSubmission(submission) {
   return local.set({ [KEYS.lastSubmission]: submission });
+}
+
+// User customization settings, merged over defaults (so new fields are safe).
+export async function getSettings() {
+  const d = await local.get(KEYS.settings);
+  const saved = d[KEYS.settings] || {};
+  return { ...DEFAULT_SETTINGS, ...saved, header: { ...DEFAULT_SETTINGS.header, ...(saved.header || {}) } };
+}
+
+export function setSettings(settings) {
+  return local.set({ [KEYS.settings]: settings });
 }

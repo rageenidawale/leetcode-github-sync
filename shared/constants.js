@@ -27,6 +27,21 @@ export const KEYS = {
   lastAccepted: "lastAccepted",
   lastSync: "lastSync",
   syncError: "syncError",
+  settings: "settings",
+};
+
+// User customization (Milestone 3). Defaults reproduce the original behavior.
+export const DEFAULT_SETTINGS = {
+  // Folder layout: "language" | "difficulty" | "language/difficulty" | "difficulty/language"
+  folderLayout: "language",
+  // Filename tokens: {slug} {id} {title}
+  filenameTemplate: "{slug}",
+  // Commit tokens: {path} {slug} {title} {difficulty} {lang} {date}
+  commitTemplate: "LeetCode: update {path}",
+  // Empty = repository default branch
+  branch: "",
+  // Which fields to include in the file header comment
+  header: { date: true, link: true, difficulty: false, topics: false },
 };
 
 // Canonical language → output folder + file extension.

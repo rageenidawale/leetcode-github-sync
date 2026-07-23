@@ -13,12 +13,13 @@ function authHeaders(token) {
   };
 }
 
-export async function pushToGitHub({ owner, repo, token, path, content }) {
+export async function pushToGitHub({ owner, repo, token, path, content, message, branch }) {
   const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${path}`;
 
-  // Check if file exists (get SHA)
+  // Check if file exists (get SHA), on the target branch when one is set.
   let sha = null;
-  const getRes = await fetch(url, { headers: authHeaders(token) });
+  const getUrl = branch ? `${url}?ref=${encodeURIComponent(branch)}` : url;
+  const getRes = await fetch(getUrl, { headers: authHeaders(token) });
 
   if (getRes.status === 200) {
     sha = (await getRes.json()).sha;
@@ -27,8 +28,9 @@ export async function pushToGitHub({ owner, repo, token, path, content }) {
   }
 
   // Create or update file
-  const body = { message: `LeetCode: update ${path}`, content: base64Encode(content) };
+  const body = { message: message || `LeetCode: update ${path}`, content: base64Encode(content) };
   if (sha) body.sha = sha;
+  if (branch) body.branch = branch;
 
   const putRes = await fetch(url, {
     method: "PUT",
