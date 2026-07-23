@@ -21,6 +21,32 @@ function getProblemSlug() {
   return match ? match[1] : null;
 }
 
+// Fetch id/title/difficulty/topics from LeetCode's GraphQL API (same-origin).
+// Returns null on any failure so a sync never breaks over missing metadata.
+async function fetchMeta(slug) {
+  try {
+    const res = await fetch("https://leetcode.com/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: `query q($slug:String!){question(titleSlug:$slug){questionFrontendId title difficulty topicTags{name}}}`,
+        variables: { slug },
+      }),
+    });
+    const q = (await res.json())?.data?.question;
+    if (!q) return null;
+    return {
+      id: q.questionFrontendId,
+      title: q.title,
+      difficulty: q.difficulty,
+      topics: (q.topicTags || []).map((t) => t.name),
+    };
+  } catch (err) {
+    console.warn(LOG_PREFIX, "Metadata fetch failed:", err.message);
+    return null;
+  }
+}
+
 // Reset submission state when navigating to a different problem
 setInterval(() => {
   const slug = getProblemSlug();
@@ -53,7 +79,8 @@ const observer = new MutationObserver(() => {
 
   if (resultEl.innerText.trim() === "Accepted") {
     submissionInProgress = false;
-    safeSendMessage({ type: MSG_EXTRACT_CODE });
+    const slug = getProblemSlug();
+    fetchMeta(slug).then((meta) => safeSendMessage({ type: MSG_EXTRACT_CODE, meta }));
   }
 });
 
