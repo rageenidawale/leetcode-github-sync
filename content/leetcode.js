@@ -1,10 +1,16 @@
+// Content script — runs on leetcode.com/problems/*. Classic content scripts
+// can't import ES modules without bundling, so the couple of values it shares
+// with the rest of the extension are mirrored here from shared/constants.js.
+const MSG_EXTRACT_CODE = "EXTRACT_CODE"; // MESSAGES.EXTRACT_CODE
+const LOG_PREFIX = "[LinkCode]";
+
 let submissionInProgress = false;
 let lastSeenResult = null;
 let currentProblemSlug = null;
 
 function safeSendMessage(payload) {
   if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.sendMessage) {
-    console.warn("Extension context unavailable. Message skipped.");
+    console.warn(LOG_PREFIX, "Extension context unavailable. Message skipped.");
     return;
   }
   chrome.runtime.sendMessage(payload);
@@ -47,7 +53,7 @@ const observer = new MutationObserver(() => {
 
   if (resultEl.innerText.trim() === "Accepted") {
     submissionInProgress = false;
-    safeSendMessage({ type: "EXTRACT_CODE" });
+    safeSendMessage({ type: MSG_EXTRACT_CODE });
   }
 });
 
