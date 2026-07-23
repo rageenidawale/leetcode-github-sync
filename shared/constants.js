@@ -13,6 +13,9 @@ export const WORKER_BASE_URL = "https://YOUR-WORKER.workers.dev";
 export const MESSAGES = {
   EXTRACT_CODE: "EXTRACT_CODE",
   MANUAL_SYNC: "MANUAL_SYNC",
+  ENQUEUE: "ENQUEUE",             // content -> worker: queue ready-made submissions
+  IMPORT_HISTORY: "IMPORT_HISTORY", // options -> content tab: backfill past solutions
+  RETRY_FAILED: "RETRY_FAILED",   // options -> worker: retry failed queue jobs
 };
 
 // chrome.storage.local keys.
@@ -28,6 +31,10 @@ export const KEYS = {
   lastSync: "lastSync",
   syncError: "syncError",
   settings: "settings",
+  queue: "syncQueue",           // pending/failed sync jobs
+  history: "syncHistory",       // recent sync results
+  syncedHashes: "syncedHashes", // path -> content hash, for duplicate detection
+  importStatus: "importStatus", // historical import progress
 };
 
 // User customization (Milestone 3). Defaults reproduce the original behavior.

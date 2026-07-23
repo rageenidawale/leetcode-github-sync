@@ -13,30 +13,35 @@ function authHeaders(token) {
   };
 }
 
+// Current blob SHA for a path (null if the file doesn't exist).
+async function getSha(url, token) {
+  const res = await fetch(url, { headers: authHeaders(token) });
+  if (res.status === 200) return (await res.json()).sha;
+  if (res.status === 404) return null;
+  throw new Error(`Precheck failed: ${res.status} ${await res.text()}`);
+}
+
 export async function pushToGitHub({ owner, repo, token, path, content, message, branch }) {
   const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${path}`;
-
-  // Check if file exists (get SHA), on the target branch when one is set.
-  let sha = null;
   const getUrl = branch ? `${url}?ref=${encodeURIComponent(branch)}` : url;
-  const getRes = await fetch(getUrl, { headers: authHeaders(token) });
 
-  if (getRes.status === 200) {
-    sha = (await getRes.json()).sha;
-  } else if (getRes.status !== 404) {
-    throw new Error(`Precheck failed: ${getRes.status} ${await getRes.text()}`);
+  const put = async (sha) => {
+    const body = { message: message || `LeetCode: update ${path}`, content: base64Encode(content) };
+    if (sha) body.sha = sha;
+    if (branch) body.branch = branch;
+    return fetch(url, {
+      method: "PUT",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  };
+
+  let putRes = await put(await getSha(getUrl, token));
+
+  // Conflict: the file changed between our SHA read and write — refetch and retry once.
+  if (putRes.status === 409 || putRes.status === 422) {
+    putRes = await put(await getSha(getUrl, token));
   }
-
-  // Create or update file
-  const body = { message: message || `LeetCode: update ${path}`, content: base64Encode(content) };
-  if (sha) body.sha = sha;
-  if (branch) body.branch = branch;
-
-  const putRes = await fetch(url, {
-    method: "PUT",
-    headers: { ...authHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
 
   if (!putRes.ok) {
     throw new Error(`Push failed: ${putRes.status} ${await putRes.text()}`);
