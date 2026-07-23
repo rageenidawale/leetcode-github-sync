@@ -1,4 +1,4 @@
-# LinkCode 
+# LinkCode
 LeetCode → GitHub Sync
 
 LinkCode automatically syncs your **accepted LeetCode solutions** to a **single GitHub repository**, with full control, transparency, and minimal permissions.
@@ -10,151 +10,123 @@ LinkCode automatically syncs your **accepted LeetCode solutions** to a **single 
 **LinkCode** is a Chrome extension that watches your LeetCode submissions and saves **only accepted solutions** directly to a GitHub repository you choose.
 
 - One repository per user
-- Auto-sync or manual sync modes
-- No unnecessary permissions
-- Clean, developer-focused UI
+- Auto-sync or manual sync
+- No personal access tokens — sign in with GitHub, scoped to one repo
+- Configurable folders, filenames, commit messages, and headers
+- Background sync queue with automatic retry
 
 ---
 
 ## Why does this extension exist?
 
-Most existing LeetCode → GitHub tools:
+Most existing LeetCode → GitHub tools ask for **full GitHub account access** and can touch **all your repositories**. LinkCode exists to fix that.
 
-- Ask for **full GitHub account access**
-- Access **all repositories**
-
-As developers, this raises real concerns:
-- Why does an extension need access to my entire GitHub?
-
-**LinkCode exists to fix this.**
-
-### The philosophy behind LinkCode
-- **Minimal access** – only one repository
-- **Transparency** – you see what gets synced
-- **Control** – auto or manual syncing
+- **Minimal access** – a GitHub App installed on **one repository**, with **Contents: Read and write** and nothing else
+- **Transparency** – you see exactly what gets synced
+- **Control** – auto or manual syncing, plus per-field customization
 - **Clean history** – Git handles versions, not the extension
 
 ---
 
 ## How does LinkCode work?
 
-1. **Connect a GitHub repository**
-   - Provide your GitHub username, repository name, and an access token
-   - Token is stored locally and can be revoked anytime
+1. **Connect with GitHub**
+   - Click **Connect with GitHub** in the popup
+   - Install the LinkCode GitHub App on the **single repository** you want to sync
+   - No token to copy or paste
 
 2. **Solve problems on LeetCode**
    - LinkCode listens for **Accepted** submissions only
 
 3. **Extract the solution safely**
-   - Reads code directly from the editor
-   - Detects the programming language automatically
+   - Reads code directly from the editor and detects the language
+   - Pulls problem difficulty and topics from LeetCode (used for folders/headers)
 
 4. **Sync to GitHub**
-   - Saves code under language-based folders  
-     Example:
+   - Saves code under your chosen layout, e.g. by language:
      ```
      python/two_sum.py
      javascript/valid_parentheses.js
      ```
-   - Existing files are **updated**, not duplicated
-   - Git handles version history automatically
+     …or by difficulty, or both (`python/easy/two_sum.py`)
+   - Existing files are **updated**, not duplicated; Git handles history
+   - Syncs run through a background queue that retries on failure or when offline
 
 5. **You stay in control**
-   - Auto-sync ON → sync happens automatically
-   - Auto-sync OFF → sync manually when you want
+   - Auto-sync ON → sync happens automatically after each Accepted submission
+   - Auto-sync OFF → sync manually from the popup
+
+---
+
+## Customization
+
+Open **Settings** (the link on the dashboard, or right-click the extension → Options):
+
+- **Folder layout** – by language, by difficulty, or both in either order
+- **Filename** – template with `{slug}`, `{id}`, `{title}`
+- **Commit message** – template with `{path}`, `{title}`, `{difficulty}`, `{lang}`, `{date}`, …
+- **Branch** – push to a specific branch, or the repository default
+- **File header** – toggle date, problem link, difficulty, and topics
+- **Import existing solutions** – backfill your recent accepted submissions
+- **Sync activity** – recent syncs and one-click retry of any that failed
 
 ---
 
 ## Security & Privacy
 
-LinkCode is built with security as a first-class concern.
-
-- Uses **fine-grained GitHub tokens**
-- Requires access to **only one repository**
-- Never accesses other repositories or account data
-- No analytics, tracking, or external servers
-- All data stored locally using `chrome.storage.local`
+- **One repository only.** LinkCode uses a GitHub App you install on a single repo, with **Contents: Read and write** — no access to other repositories, issues, pull requests, profile, or organization data.
+- **No personal access token.** You sign in with GitHub; the extension holds a short-lived (1-hour), repo-scoped token that is refreshed automatically.
+- **Your code goes straight to GitHub.** A lightweight backend (a Cloudflare Worker) handles only the GitHub sign-in/token exchange — your solution code is pushed **directly from your browser to GitHub and never passes through it**.
+- **Local storage only.** Session, settings, and the sync queue live in `chrome.storage.local`.
+- **No analytics or tracking.**
 
 ---
 
-## Why does LinkCode need a GitHub token?
+## Self-hosting the backend
 
-LinkCode needs a GitHub token **only to create or update files** in the repository you choose.
-
-It **cannot**:
-- Access other repositories
-- Read issues, pull requests, or profile data
-- Perform any action outside the selected repository
-
-Your token:
-- Stays **only in your browser**
-- Is never sent to any external server
-- Can be revoked anytime from GitHub settings
-
-This avoids risky OAuth flows and keeps **full control in your hands**.
-
----
-
-## Required token permissions
-
-When creating a **fine-grained GitHub token**, grant **only** the following access:
-
-### Repository access
-- Select **only the repository** you want to sync with LinkCode
-
-### Repository permissions
-- **Contents:** Read and write
-
-No other permissions are required.
-
-LinkCode does **not** need access to:
-- Other repositories
-- Issues or pull requests
-- User profile data
-- Organization data
+The GitHub sign-in requires a small backend (Cloudflare Worker) that holds the
+GitHub App credentials and mints repo-scoped tokens. If you're running your own
+instance, see [`backend/README.md`](backend/README.md) for the full setup:
+register the GitHub App, deploy the Worker, and point `WORKER_BASE_URL` in
+`shared/constants.js` at it.
 
 ---
 
 ## Features
 
 - Sync **only accepted submissions**
-- Auto-sync and manual sync modes
-- Language-based folder structure
-- Draft-safe setup (no lost form data on tab switch)
+- Auto-sync and manual sync
+- GitHub App sign-in scoped to one repository
+- Configurable folder layout, filename, commit message, branch, and header
+- Difficulty and topics pulled from LeetCode
+- Background sync queue: retry, offline recovery, duplicate detection
+- Import recent accepted solutions
 - Clean, distraction-free UI
 
 ---
 
 ## Tech Stack
 
-- Chrome Extensions (Manifest V3)
-- Vanilla JavaScript
-- GitHub REST API
-- No external dependencies
+- Chrome Extensions (Manifest V3), ES modules
+- Vanilla JavaScript, no external dependencies
+- GitHub App auth via a Cloudflare Worker
+- GitHub REST API + LeetCode GraphQL
 
 ---
 
 ## Reporting Bugs
 
-Found a bug or something confusing?
+Please report issues here:
+https://github.com/rageenidawale/linkcode-leetcode-github-sync/issues
 
-Please report it here:  
-https://github.com/rageenidawale/leetcode-github-sync/issues
-
-Include:
-- What you expected
-- What actually happened
-- Screenshots if possible
+Include what you expected, what actually happened, and screenshots if possible.
 
 ---
 
 ## Roadmap
 
-Planned improvements:
-- Problem metadata headers
-- Submission history
-- Streak tracking
-- Better language detection
-- Optional OAuth support
+See `Chrome Extension features` for the full plan. Next up: multiple
+repositories, automatic README/portfolio generation, richer stats, and a UI
+refresh.
 
 ---
