@@ -1,7 +1,7 @@
 import { MESSAGES } from "../shared/constants.js";
 import * as log from "../shared/logger.js";
 import * as store from "../shared/storage.js";
-import { normalizeLanguage, getPath, buildHeader } from "../shared/languages.js";
+import { normalizeLanguage, buildPath, buildHeader, buildCommitMessage, humanize } from "../shared/languages.js";
 import { pushToGitHub } from "../shared/github.js";
 import * as auth from "../shared/auth.js";
 
@@ -21,13 +21,25 @@ function extractFromMonaco() {
   return { code, language };
 }
 
-// Build the header + push a submission to GitHub, then record the sync.
-async function pushSubmission({ problemSlug, language, code }, langInfo, cfg, path, token) {
+// Build the header + commit message, push to GitHub, then record the sync.
+async function pushSubmission(submission, langInfo, cfg, settings, path, token) {
+  const { problemSlug, language, code, meta } = submission;
+
   const header = buildHeader({
-    title: problemSlug.replace(/-/g, " "),
     slug: problemSlug,
     rawLanguage: language,
     langInfo,
+    meta,
+    headerOpts: settings.header,
+  });
+
+  const message = buildCommitMessage(settings.commitTemplate, {
+    path,
+    slug: problemSlug,
+    title: meta?.title || humanize(problemSlug),
+    difficulty: meta?.difficulty || "",
+    lang: language,
+    date: new Date().toLocaleString(),
   });
 
   await pushToGitHub({
@@ -36,12 +48,14 @@ async function pushSubmission({ problemSlug, language, code }, langInfo, cfg, pa
     token,
     path,
     content: `${header}\n${code}`,
+    message,
+    branch: settings.branch,
   });
 
   await store.setLastSync(path);
 }
 
-async function handleExtractCode(sender) {
+async function handleExtractCode(sender, meta) {
   const results = await chrome.scripting.executeScript({
     target: { tabId: sender.tab.id },
     world: "MAIN",
@@ -63,6 +77,7 @@ async function handleExtractCode(sender) {
     problemSlug: sender.tab.url.split("/")[4],
     language,
     code,
+    meta: meta || null,
     timestamp: Date.now(),
   };
 
@@ -74,15 +89,16 @@ async function handleExtractCode(sender) {
   }
 
   const cfg = await store.getConfig();
+  const settings = await store.getSettings();
 
   try {
-    const path = getPath(langInfo, submission.problemSlug);
+    const path = buildPath(langInfo, submission.problemSlug, submission.meta, settings);
     await store.setLastAccepted(path);
 
     if (cfg.autoSync === false) return;
 
     const token = await auth.getAccessToken();
-    await pushSubmission(submission, langInfo, cfg, path, token);
+    await pushSubmission(submission, langInfo, cfg, settings, path, token);
   } catch (err) {
     log.error("GitHub push error:", err.message);
     await store.setSyncError(
@@ -112,17 +128,18 @@ async function handleManualSync() {
   }
 
   const cfg = await store.getConfig();
+  const settings = await store.getSettings();
 
   try {
-    const path = getPath(langInfo, submission.problemSlug);
+    const path = buildPath(langInfo, submission.problemSlug, submission.meta, settings);
     const token = await auth.getAccessToken();
-    await pushSubmission(submission, langInfo, cfg, path, token);
+    await pushSubmission(submission, langInfo, cfg, settings, path, token);
   } catch (err) {
     log.error("Manual sync failed:", err.message);
   }
 }
 
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.type === MESSAGES.EXTRACT_CODE) handleExtractCode(sender);
+  if (message.type === MESSAGES.EXTRACT_CODE) handleExtractCode(sender, message.meta);
   if (message.type === MESSAGES.MANUAL_SYNC) handleManualSync();
 });
